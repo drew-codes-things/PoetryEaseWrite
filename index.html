@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poetry Writing</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="particles" id="particles"></div>
+<div class="container">
+    <header>
+        <h1>Poetry Writing</h1>
+    </header>
+    <div class="sidebar sidebar-left">
+        <h3>Word Lookup</h3>
+        <input type="text" id="lookupInput" placeholder="Enter a word to explore...">
+        <button onclick="lookupWord()">Search</button>
+        <div class="result" id="lookupResult"></div>
+    </div>
+    <div class="workspace-container" id="workspaces"></div>
+    <div class="sidebar sidebar-right">
+        <h3>Rhyme Finder</h3>
+        <input type="text" id="rhymeInput" placeholder="Find perfect rhymes...">
+        <button onclick="findRhymes()">Search</button>
+        <div class="result" id="rhymeResult"></div>
+    </div>
+</div>
+<script src="script.js" defer></script>
+</body>
+</html>
