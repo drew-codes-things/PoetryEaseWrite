@@ -55,9 +55,9 @@ function addWorkspace() {
         <input type="text" class="editable-title" value="choose your poem name" placeholder="Enter your title...">
         <textarea placeholder="Let your creativity flow... Write your poetry here..."></textarea>
         <div class="button-group">
-            <button class="save-btn" onclick="savePoem(this)">💾 Save as Text</button>
-            <button class="toggle-reference" onclick="toggleReference(this)">🖼️ Reference Media</button>
-            <button class="delete-btn" onclick="deleteWorkspace(this)" title="Delete this workspace">🗑️ Delete</button>
+            <button class="save-btn" onclick="savePoem(this)">Save as Text</button>
+            <button class="toggle-reference" onclick="toggleReference(this)">Reference Media</button>
+            <button class="delete-btn" onclick="deleteWorkspace(this)" title="Delete this workspace">Delete</button>
         </div>
         <div class="reference-section hidden">
             <div class="reference-header">
@@ -214,7 +214,7 @@ function savePoem(button) {
     const title = workspace.querySelector('.editable-title').value.trim() || 'Untitled';
     const filename = `${title}.txt`;
     button.style.transform = 'scale(0.95)';
-    button.innerHTML = '💾 Saving...';
+    button.innerHTML = 'Saving...';
     setTimeout(() => {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = window.URL.createObjectURL(blob);
@@ -225,10 +225,10 @@ function savePoem(button) {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        button.innerHTML = '💾 Saved!';
+        button.innerHTML = 'Saved!';
         button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
         setTimeout(() => {
-            button.innerHTML = '💾 Save as Text';
+            button.innerHTML = 'Save as Text';
             button.style.background = '';
             button.style.transform = '';
         }, 2000);
@@ -263,14 +263,14 @@ async function lookupWord() {
             </div>
         `;
     } catch (e) {
-        resultDiv.innerHTML = `<div style="color: #ff6b6b;">❌ Unable to find definition. Try another word.</div>`;
+        resultDiv.innerHTML = `<div style="color: #ff6b6b;">Unable to find definition. Try another word.</div>`;
     }
 }
 async function findRhymes() {
     const word = document.getElementById('rhymeInput').value.trim();
     const resultDiv = document.getElementById('rhymeResult');
     if (!word) return;
-    resultDiv.innerHTML = '<div class="loading">🎵 Finding rhymes...</div>';
+    resultDiv.innerHTML = '<div class="loading">Finding rhymes...</div>';
     try {
         let res = await fetch(`https://api.datamuse.com/words?rel_rhy=${word}`);
         let data = await res.json();
@@ -297,10 +297,10 @@ async function findRhymes() {
                 </div>
             `;
         } else {
-            resultDiv.innerHTML = `<div style="color: #ff6b6b;">❌ No rhymes found. Try a different word.</div>`;
+            resultDiv.innerHTML = `<div style="color: #ff6b6b;">No rhymes found. Try a different word.</div>`;
         }
     } catch (e) {
-        resultDiv.innerHTML = `<div style="color: #ff6b6b;">❌ Unable to find rhymes. Please try again.</div>`;
+        resultDiv.innerHTML = `<div style="color: #ff6b6b;">Unable to find rhymes. Please try again.</div>`;
     }
 }
 function uploadBackground(element) {
@@ -316,7 +316,7 @@ function changeBackground(event, element) {
     if (!file) return;
     const reader = new FileReader();
     const handlers = setupMediaHandlers(element);
-    element.innerHTML = '<div class="loading" style="color: var(--text-accent);">📁 Loading media...</div>';
+    element.innerHTML = '<div class="loading" style="color: var(--text-accent);">Loading media...</div>';
     reader.onload = function(e) {
         element.innerHTML = '';
         element.classList.add('has-image');
@@ -357,10 +357,10 @@ function toggleReference(button) {
     const isHiding = !refSection.classList.contains('hidden');
     refSection.classList.toggle('hidden');
     if (isHiding) {
-        button.innerHTML = '🖼️ Show Reference';
+        button.innerHTML = 'Show Reference';
         button.style.background = 'rgba(255, 255, 255, 0.1)';
     } else {
-        button.innerHTML = '🖼️ Hide Reference';
+        button.innerHTML = 'Hide Reference';
         button.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)';
         refSection.style.marginTop = '2rem';
         refSection.style.padding = '2rem';
@@ -389,7 +389,7 @@ document.addEventListener('keydown', function(e) {
 setTimeout(() => {
     const firstTextarea = document.querySelector('textarea');
     if (firstTextarea && !firstTextarea.value) {
-        const welcomeText = "✨ Welcome to your creative sanctuary...\n\nLet inspiration flow through your fingertips.\nEvery great poem starts with a single word.\n\nWhat story will you tell today?";
+        const welcomeText = "Let your emotions go wild<3";
         let index = 0;
         function typeWriter() {
             if (index < welcomeText.length && !firstTextarea.value) {
