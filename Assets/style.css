@@ -37,7 +37,7 @@ body {
 
 header {
     grid-column: 1 / -1;
-    background-image: url('Assets/banner.png');
+    background-image: url('banner.png');
     background-size: cover;
     background-position: center;
     padding: calc(var(--space-sm) * 1.5) 0;
@@ -214,3 +214,4 @@ a:hover { color: #a52a2a; }
 }
 
 button { position: relative; overflow: hidden; }
+
