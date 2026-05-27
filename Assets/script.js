@@ -39,7 +39,6 @@ function addWorkspace() {
     `;
     container.appendChild(ws);
 
-    // Animate in
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             ws.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -55,12 +54,10 @@ function addWorkspace() {
         titleInput.select();
     }, 350);
 
-    // Attach focus/blur effect to dynamically created inputs
     ws.querySelectorAll('input[type="text"], textarea').forEach(attachFocusEffect);
 
     setupMediaHandlers(ws.querySelector('.reference-image'));
 
-    // Flash the add button
     const addBtn = document.querySelector('.add-workspace-btn');
     if (addBtn) {
         const orig = addBtn.textContent;
@@ -159,7 +156,6 @@ function setupMediaHandlers(container) {
         media = newMedia;
         resetTransform();
         media.style.cursor = 'grab';
-        // Use addEventListener per-container so multiple workspaces don't clobber each other
         container.addEventListener('wheel', onWheel, { passive: false });
         media.addEventListener('pointerdown', onPointerDown);
         media.addEventListener('pointermove', onPointerMove);
@@ -222,7 +218,6 @@ async function lookupWord() {
             resultDiv.innerHTML = '<p class="result-error">Unable to find definition. Try another word.</p>';
             return;
         }
-        // Gather all synonyms across all meanings
         const allSynonyms = [];
         data[0].meanings.forEach(m => {
             m.synonyms && allSynonyms.push(...m.synonyms);
@@ -351,7 +346,6 @@ document.addEventListener('DOMContentLoaded', function () {
     createParticles();
     addWorkspace();
 
-    // Typewriter welcome placeholder — runs after first workspace is in DOM
     setTimeout(() => {
         const firstTextarea = document.querySelector('textarea');
         if (firstTextarea && !firstTextarea.value) {
@@ -368,10 +362,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 800);
 
-    // Attach focus effect to sidebar inputs
     document.querySelectorAll('.sidebar input[type="text"]').forEach(attachFocusEffect);
 
-    // Enter key triggers search in sidebars
     document.getElementById('lookupInput').addEventListener('keydown', e => {
         if (e.key === 'Enter') lookupWord();
     });
@@ -379,7 +371,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.key === 'Enter') findRhymes();
     });
 
-    // Ripple effect
     const rippleStyle = document.createElement('style');
     rippleStyle.textContent = `@keyframes ripple { to { transform: scale(2); opacity: 0; } }`;
     document.head.appendChild(rippleStyle);
@@ -406,7 +397,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Auto-grow textareas
     document.addEventListener('input', function(e) {
         if (e.target.tagName === 'TEXTAREA') {
             e.target.style.height = 'auto';
@@ -414,7 +404,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             const ta = document.activeElement;
