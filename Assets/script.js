@@ -1,5 +1,46 @@
 let workspaceCount = 0;
 
+// ---------------------------------------------------------------------------
+// localStorage autosave
+// ---------------------------------------------------------------------------
+
+const AUTOSAVE_KEY = 'easepoet_workspaces';
+
+function autosaveAll() {
+    const workspaces = document.querySelectorAll('.workspace');
+    const data = [];
+    workspaces.forEach(ws => {
+        data.push({
+            title:   ws.querySelector('.editable-title')?.value ?? '',
+            content: ws.querySelector('textarea')?.value ?? ''
+        });
+    });
+    try {
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+    } catch (e) {
+        // localStorage unavailable (private browsing quota etc.) - silently ignore
+    }
+}
+
+function restoreAutosave() {
+    try {
+        const raw = localStorage.getItem(AUTOSAVE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data) || data.length === 0) return false;
+        data.forEach(item => {
+            addWorkspace(item.title, item.content);
+        });
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Particles
+// ---------------------------------------------------------------------------
+
 function createParticles() {
     const particles = document.getElementById('particles');
     for (let i = 0; i < 18; i++) {
@@ -12,18 +53,31 @@ function createParticles() {
     }
 }
 
-function addWorkspace() {
+// ---------------------------------------------------------------------------
+// Workspace management
+// ---------------------------------------------------------------------------
+
+function addWorkspace(restoredTitle, restoredContent) {
     workspaceCount++;
+    const wsIndex = workspaceCount;
     const container = document.getElementById('workspaces');
     const ws = document.createElement('div');
     ws.className = 'workspace';
+    ws.dataset.wsIndex = wsIndex;
     ws.style.opacity = '0';
     ws.style.transform = 'translateY(30px) scale(0.95)';
     ws.innerHTML = `
-        <input type="text" class="editable-title" value="choose your poem name" placeholder="Enter your title...">
-        <textarea placeholder="Let your creativity flow..."></textarea>
+        <input type="text" class="editable-title" value="${restoredTitle || 'choose your poem name'}" placeholder="Enter your title...">
+        <textarea placeholder="Let your creativity flow...">${restoredContent || ''}</textarea>
+        <div class="syllable-bar" id="syllablebar${wsIndex}" aria-live="polite">
+            <span class="syllable-label">Syllables:</span>
+            <span class="syllable-count" id="syllablecount${wsIndex}">-</span>
+            <button class="syllable-toggle" aria-expanded="false" aria-controls="syllabledetail${wsIndex}" onclick="toggleSyllableDetail(this)">per line ▾</button>
+            <div class="syllable-detail hidden" id="syllabledetail${wsIndex}"></div>
+        </div>
         <div class="button-group">
             <button class="save-btn" onclick="savePoem(this)">Save as Text</button>
+            <button class="save-pdf-btn" onclick="printPoem(this)">Save as PDF</button>
             <button class="toggle-reference" onclick="toggleReference(this)">Reference Media</button>
             <button class="delete-btn" onclick="deleteWorkspace(this)" title="Delete this workspace">Delete</button>
         </div>
@@ -32,7 +86,7 @@ function addWorkspace() {
                 <h3>Reference Media</h3>
                 <button class="change-image-btn" onclick="uploadBackground(this.closest('.reference-section').querySelector('.reference-image'))">Change Media</button>
             </div>
-            <div class="reference-image" id="reference${workspaceCount}">
+            <div class="reference-image" id="reference${wsIndex}">
                 <span class="reference-text">Click to upload inspiration image or video</span>
             </div>
         </div>
@@ -47,26 +101,47 @@ function addWorkspace() {
         });
     });
 
-    setTimeout(() => {
-        ws.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const titleInput = ws.querySelector('.editable-title');
-        titleInput.focus();
-        titleInput.select();
-    }, 350);
+    if (!restoredContent) {
+        setTimeout(() => {
+            ws.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const titleInput = ws.querySelector('.editable-title');
+            titleInput.focus();
+            titleInput.select();
+        }, 350);
+    }
 
     ws.querySelectorAll('input[type="text"], textarea').forEach(attachFocusEffect);
-
     setupMediaHandlers(ws.querySelector('.reference-image'));
 
-    const addBtn = document.querySelector('.add-workspace-btn');
-    if (addBtn) {
-        const orig = addBtn.textContent;
-        addBtn.textContent = '✓ Added';
-        addBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-        setTimeout(() => {
-            addBtn.textContent = orig;
-            addBtn.style.background = '';
-        }, 1000);
+    // Attach syllable counter to this workspace's textarea
+    const ta = ws.querySelector('textarea');
+    let syllableTimer;
+    ta.addEventListener('input', function () {
+        clearTimeout(syllableTimer);
+        syllableTimer = setTimeout(() => updateSyllableBar(wsIndex, ta.value), 600);
+        // also auto-resize
+        ta.style.height = 'auto';
+        ta.style.height = Math.max(300, ta.scrollHeight) + 'px';
+        autosaveAll();
+    });
+    ws.querySelector('.editable-title').addEventListener('input', autosaveAll);
+
+    // If restoring, trigger a syllable update
+    if (restoredContent) {
+        setTimeout(() => updateSyllableBar(wsIndex, restoredContent), 800);
+    }
+
+    if (!restoredContent) {
+        const addBtn = document.querySelector('.add-workspace-btn');
+        if (addBtn) {
+            const orig = addBtn.textContent;
+            addBtn.textContent = '\u2713 Added';
+            addBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            setTimeout(() => {
+                addBtn.textContent = orig;
+                addBtn.style.background = '';
+            }, 1000);
+        }
     }
 }
 
@@ -85,12 +160,80 @@ function deleteWorkspace(button) {
         });
         setTimeout(() => {
             workspace.remove();
+            autosaveAll();
             if (document.querySelectorAll('.workspace').length === 0) {
                 setTimeout(addWorkspace, 200);
             }
         }, 420);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Syllable counter (Datamuse /syl endpoint)
+// ---------------------------------------------------------------------------
+
+const syllableCache = {};
+
+async function getSyllableCount(word) {
+    const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+    if (!clean) return 0;
+    if (syllableCache[clean] !== undefined) return syllableCache[clean];
+    try {
+        const res = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(clean)}&md=s&max=1`);
+        const data = await res.json();
+        if (data.length > 0 && data[0].numSyllables) {
+            syllableCache[clean] = data[0].numSyllables;
+            return data[0].numSyllables;
+        }
+        // Fallback: rough vowel-group count
+        const count = (clean.match(/[aeiou]+/gi) || []).length || 1;
+        syllableCache[clean] = count;
+        return count;
+    } catch {
+        return (clean.match(/[aeiou]+/gi) || []).length || 1;
+    }
+}
+
+async function updateSyllableBar(wsIndex, text) {
+    const countEl  = document.getElementById('syllablecount' + wsIndex);
+    const detailEl = document.getElementById('syllabledetail' + wsIndex);
+    if (!countEl) return;
+
+    const lines = text.split('\n');
+    let total = 0;
+    const lineResults = [];
+
+    for (const line of lines) {
+        const words = line.trim().split(/\s+/).filter(Boolean);
+        let lineSyl = 0;
+        for (const word of words) {
+            lineSyl += await getSyllableCount(word);
+        }
+        total += lineSyl;
+        if (line.trim()) lineResults.push({ line: line.trim(), count: lineSyl });
+    }
+
+    countEl.textContent = total || '-';
+    detailEl.innerHTML = lineResults.map(r =>
+        `<div class="syllable-line"><span class="syllable-line-text">${escapeHtml(r.line)}</span><span class="syllable-line-count">${r.count}</span></div>`
+    ).join('');
+}
+
+function toggleSyllableDetail(btn) {
+    const detail = btn.nextElementSibling;
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    detail.classList.toggle('hidden', expanded);
+    btn.setAttribute('aria-expanded', String(!expanded));
+    btn.textContent = expanded ? 'per line \u25be' : 'per line \u25b4';
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ---------------------------------------------------------------------------
+// Media handlers
+// ---------------------------------------------------------------------------
 
 function setupMediaHandlers(container) {
     let scale = 1, isDragging = false;
@@ -162,7 +305,7 @@ function setupMediaHandlers(container) {
         media.addEventListener('pointerup', onPointerUp);
         media.addEventListener('pointercancel', onPointerUp);
     }
-    container.addEventListener('click', function(e) {
+    container.addEventListener('click', function() {
         if (!container.querySelector('img') && !container.querySelector('video')) {
             uploadBackground(container);
         }
@@ -170,15 +313,19 @@ function setupMediaHandlers(container) {
     return { attachHandlers, setupVideoControls, resetTransform };
 }
 
+// ---------------------------------------------------------------------------
+// Save / export
+// ---------------------------------------------------------------------------
+
 function savePoem(button) {
     const workspace = button.closest('.workspace');
-    const text = workspace.querySelector('textarea').value;
+    const text  = workspace.querySelector('textarea').value;
     const title = workspace.querySelector('.editable-title').value.trim() || 'Untitled';
     button.style.transform = 'scale(0.95)';
     button.textContent = 'Saving...';
     setTimeout(() => {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
+        const url  = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = `${title}.txt`;
         document.body.appendChild(a);
@@ -195,6 +342,20 @@ function savePoem(button) {
     }, 500);
 }
 
+function printPoem(button) {
+    // Mark which workspace to print, then call window.print().
+    // The @media print CSS hides everything except the marked workspace.
+    const workspace = button.closest('.workspace');
+    document.querySelectorAll('.workspace').forEach(ws => ws.classList.remove('print-target'));
+    workspace.classList.add('print-target');
+    window.print();
+    setTimeout(() => workspace.classList.remove('print-target'), 1000);
+}
+
+// ---------------------------------------------------------------------------
+// Word lookup
+// ---------------------------------------------------------------------------
+
 async function lookupWord() {
     const word = document.getElementById('lookupInput').value.trim();
     const resultDiv = document.getElementById('lookupResult');
@@ -210,7 +371,7 @@ async function lookupWord() {
             if (suggestions.length > 0) {
                 const closest = suggestions[0].word;
                 suggestionHtml = `<p class="result-suggestion">Did you mean <strong style="color:var(--text-accent)">${closest}</strong>?</p>`;
-                res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(closest)}`);
+                res  = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(closest)}`);
                 data = await res.json();
             }
         }
@@ -224,8 +385,8 @@ async function lookupWord() {
             m.definitions.forEach(d => d.synonyms && allSynonyms.push(...d.synonyms));
         });
         const uniqueSynonyms = [...new Set(allSynonyms)];
-        const meaning = data[0].meanings[0];
-        const definition = meaning.definitions[0].definition;
+        const meaning     = data[0].meanings[0];
+        const definition  = meaning.definitions[0].definition;
         resultDiv.innerHTML = suggestionHtml + `
             <div class="result-block">
                 <p class="result-word">${data[0].word}</p>
@@ -239,6 +400,10 @@ async function lookupWord() {
         resultDiv.innerHTML = '<p class="result-error">Unable to find definition. Try another word.</p>';
     }
 }
+
+// ---------------------------------------------------------------------------
+// Rhyme finder
+// ---------------------------------------------------------------------------
 
 async function findRhymes() {
     const word = document.getElementById('rhymeInput').value.trim();
@@ -255,7 +420,7 @@ async function findRhymes() {
             if (suggestions.length > 0) {
                 const closest = suggestions[0].word;
                 suggestionHtml = `<p class="result-suggestion">Did you mean <strong style="color:var(--text-accent)">${closest}</strong>?</p>`;
-                res = await fetch(`https://api.datamuse.com/words?rel_rhy=${encodeURIComponent(closest)}`);
+                res  = await fetch(`https://api.datamuse.com/words?rel_rhy=${encodeURIComponent(closest)}`);
                 data = await res.json();
             }
         }
@@ -274,6 +439,10 @@ async function findRhymes() {
         resultDiv.innerHTML = '<p class="result-error">Unable to find rhymes. Please try again.</p>';
     }
 }
+
+// ---------------------------------------------------------------------------
+// Media upload
+// ---------------------------------------------------------------------------
 
 function uploadBackground(element) {
     const input = document.createElement('input');
@@ -322,6 +491,10 @@ function changeBackground(event, element) {
     reader.readAsDataURL(file);
 }
 
+// ---------------------------------------------------------------------------
+// UI helpers
+// ---------------------------------------------------------------------------
+
 function toggleReference(button) {
     const refSection = button.closest('.workspace').querySelector('.reference-section');
     const isNowHidden = refSection.classList.toggle('hidden');
@@ -342,9 +515,18 @@ function attachFocusEffect(input) {
     });
 }
 
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+
 document.addEventListener('DOMContentLoaded', function () {
     createParticles();
-    addWorkspace();
+
+    const restored = restoreAutosave();
+    if (!restored) addWorkspace();
+
+    // Autosave every 30 seconds
+    setInterval(autosaveAll, 30000);
 
     setTimeout(() => {
         const firstTextarea = document.querySelector('textarea');
@@ -397,24 +579,30 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    document.addEventListener('input', function(e) {
-        if (e.target.tagName === 'TEXTAREA') {
-            e.target.style.height = 'auto';
-            e.target.style.height = Math.max(300, e.target.scrollHeight) + 'px';
-        }
-    });
-
     document.addEventListener('keydown', function(e) {
+        // Ctrl+Enter — save current workspace as text
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             const ta = document.activeElement;
             if (ta && ta.tagName === 'TEXTAREA') {
                 ta.closest('.workspace')?.querySelector('.save-btn')?.click();
             }
         }
+        // Ctrl+N — new workspace
         if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
             e.preventDefault();
             addWorkspace();
         }
+        // Ctrl+L — focus word lookup
+        if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+            e.preventDefault();
+            document.getElementById('lookupInput')?.focus();
+        }
+        // Ctrl+R — focus rhyme finder
+        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+            e.preventDefault();
+            document.getElementById('rhymeInput')?.focus();
+        }
+        // Escape — return focus to lookup
         if (e.key === 'Escape') {
             document.getElementById('lookupInput')?.focus();
         }

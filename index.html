@@ -3,27 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Poetry Writing</title>
+<title>EasePoet</title>
+<meta name="description" content="EasePoet - a distraction-free poetry writing app with word lookup, rhyme finder, syllable counter, and auto-save.">
+<!-- OpenGraph -->
+<meta property="og:type"        content="website">
+<meta property="og:url"         content="https://easepoet.drew-gnr.xyz/">
+<meta property="og:title"       content="EasePoet - Poetry Writing">
+<meta property="og:description" content="Distraction-free poetry writing with word lookup, rhyme finder, syllable counter, and auto-save.">
+<meta property="og:image"       content="https://easepoet.drew-gnr.xyz/Assets/banner.png">
+<!-- Twitter Card -->
+<meta name="twitter:card"        content="summary_large_image">
+<meta name="twitter:title"       content="EasePoet - Poetry Writing">
+<meta name="twitter:description" content="Distraction-free poetry writing with word lookup, rhyme finder, syllable counter, and auto-save.">
+<meta name="twitter:image"       content="https://easepoet.drew-gnr.xyz/Assets/banner.png">
 <link rel="stylesheet" href="Assets/style.css">
 </head>
 <body>
 <div class="particles" id="particles"></div>
 <div class="container">
     <header>
-        <h1>Poetry Writing</h1>
+        <h1>EasePoet</h1>
     </header>
-    <div class="sidebar sidebar-left">
+    <div class="sidebar sidebar-left" role="complementary" aria-label="Word lookup">
         <h3>Word Lookup</h3>
-        <input type="text" id="lookupInput" placeholder="Enter a word to explore...">
+        <label for="lookupInput" class="sr-only">Enter a word to look up (Ctrl+L)</label>
+        <input type="text" id="lookupInput" placeholder="Enter a word… (Ctrl+L)" aria-label="Word lookup input (Ctrl+L)">
         <button onclick="lookupWord()">Search</button>
-        <div class="result" id="lookupResult"></div>
+        <div class="result" id="lookupResult" aria-live="polite"></div>
     </div>
-    <div class="workspace-container" id="workspaces"></div>
-    <div class="sidebar sidebar-right">
+    <div class="workspace-container" id="workspaces" role="main"></div>
+    <div class="sidebar sidebar-right" role="complementary" aria-label="Rhyme finder">
         <h3>Rhyme Finder</h3>
-        <input type="text" id="rhymeInput" placeholder="Find perfect rhymes...">
+        <label for="rhymeInput" class="sr-only">Find rhymes for a word (Ctrl+R)</label>
+        <input type="text" id="rhymeInput" placeholder="Find rhymes… (Ctrl+R)" aria-label="Rhyme finder input (Ctrl+R)">
         <button onclick="findRhymes()">Search</button>
-        <div class="result" id="rhymeResult"></div>
+        <div class="result" id="rhymeResult" aria-live="polite"></div>
     </div>
 </div>
 <button class="add-workspace-btn" onclick="addWorkspace()" title="New poem workspace (Ctrl+N)">+ New Poem</button>
