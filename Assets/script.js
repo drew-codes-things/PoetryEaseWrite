@@ -70,7 +70,7 @@ function addWorkspace(restoredTitle, restoredContent) {
         <div class="syllable-bar" id="syllablebar${wsIndex}" aria-live="polite">
             <span class="syllable-label">Syllables:</span>
             <span class="syllable-count" id="syllablecount${wsIndex}">-</span>
-            <button class="syllable-toggle" aria-expanded="false" aria-controls="syllabledetail${wsIndex}">per line ▾</button>
+            <button class="syllable-toggle" aria-expanded="false" aria-controls="syllabledetail${wsIndex}">per line \u25be</button>
             <div class="syllable-detail hidden" id="syllabledetail${wsIndex}"></div>
         </div>
         <div class="button-group">
@@ -97,20 +97,25 @@ function addWorkspace(restoredTitle, restoredContent) {
         ws.style.transform = 'translateY(0)';
     }));
 
-    // Wire up all buttons via addEventListener (no onclick attributes)
     const ta = ws.querySelector('textarea');
     const titleInput = ws.querySelector('.editable-title');
     const syllableToggle = ws.querySelector('.syllable-toggle');
+    const refImageEl = ws.querySelector('.reference-image');
 
     ws.querySelector('.save-btn').addEventListener('click', () => savePoem(ws));
     ws.querySelector('.save-pdf-btn').addEventListener('click', () => printPoem(ws));
     ws.querySelector('.toggle-reference').addEventListener('click', function () { toggleReference(this, ws); });
     ws.querySelector('.delete-btn').addEventListener('click', () => deleteWorkspace(ws));
-    ws.querySelector('.change-image-btn').addEventListener('click', () => uploadBackground(ws.querySelector('.reference-image')));
-    ws.querySelector('.reference-image').addEventListener('click', function () {
+    ws.querySelector('.change-image-btn').addEventListener('click', () => uploadBackground(refImageEl));
+    refImageEl.addEventListener('click', function () {
         if (!this.querySelector('img') && !this.querySelector('video')) uploadBackground(this);
     });
     syllableToggle.addEventListener('click', function () { toggleSyllableDetail(this); });
+
+    // Initialise media handlers once per reference container at workspace creation.
+    // changeBackground() reuses the returned handlers instead of calling
+    // setupMediaHandlers() again, which would stack duplicate listeners.
+    refImageEl._mediaHandlers = setupMediaHandlers(refImageEl);
 
     let syllableTimer;
     ta.addEventListener('input', function () {
@@ -123,7 +128,6 @@ function addWorkspace(restoredTitle, restoredContent) {
     titleInput.addEventListener('input', autosaveAll);
 
     ws.querySelectorAll('input[type="text"], textarea').forEach(attachFocusEffect);
-    setupMediaHandlers(ws.querySelector('.reference-image'));
 
     if (restoredContent) {
         setTimeout(() => updateSyllableBar(wsIndex, restoredContent), 800);
@@ -251,12 +255,15 @@ function setupMediaHandlers(container) {
     }
     function attachHandlers(newMedia) {
         media = newMedia; resetTransform(); media.style.cursor = 'grab';
-        container.addEventListener('wheel', onWheel, { passive: false });
+        // Wheel listener is registered once on the container by setupMediaHandlers;
+        // pointer listeners go on the media element which is replaced each upload.
         media.addEventListener('pointerdown', onPointerDown);
         media.addEventListener('pointermove', onPointerMove);
         media.addEventListener('pointerup',   onPointerUp);
         media.addEventListener('pointercancel', onPointerUp);
     }
+    // Register the wheel listener once here -- attachHandlers must NOT re-add it.
+    container.addEventListener('wheel', onWheel, { passive: false });
     return { attachHandlers, setupVideoControls, resetTransform };
 }
 
@@ -384,12 +391,15 @@ function uploadBackground(element) {
 function changeBackground(event, element) {
     const file = event.target.files[0];
     if (!file) return;
-    const handlers = setupMediaHandlers(element);
+    // Reuse the handlers object created once by setupMediaHandlers in addWorkspace.
+    // Do NOT call setupMediaHandlers() here -- that would stack a new wheel listener
+    // on the container every time the user changes the media.
+    const handlers = element._mediaHandlers;
     element.innerHTML = '<div class="loading">Loading media...</div>';
+    handlers.resetTransform();
     const reader = new FileReader();
     reader.onload = function(e) {
         element.innerHTML = '';
-        handlers.resetTransform();
         if (file.type.startsWith('image/')) {
             const img = document.createElement('img'); img.src = e.target.result;
             img.onload = () => { element.appendChild(img); handlers.attachHandlers(img); element.style.borderStyle = 'solid'; element.style.borderColor = 'var(--accent)'; };
@@ -429,10 +439,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     setInterval(autosaveAll, 30000);
 
-    // Add workspace button
     document.getElementById('addWorkspaceBtn').addEventListener('click', addWorkspace);
 
-    // Sidebar search buttons
     document.getElementById('lookupBtn').addEventListener('click', lookupWord);
     document.getElementById('rhymeBtn').addEventListener('click', findRhymes);
 
@@ -441,7 +449,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.sidebar input[type="text"]').forEach(attachFocusEffect);
 
-    // Typing placeholder animation on first empty workspace
     setTimeout(() => {
         const firstTextarea = document.querySelector('textarea');
         if (firstTextarea && !firstTextarea.value) {
@@ -457,7 +464,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 800);
 
-    // Ripple effect on buttons
     const rippleStyle = document.createElement('style');
     rippleStyle.textContent = '@keyframes ripple { to { transform: scale(2); opacity: 0; } }';
     document.head.appendChild(rippleStyle);
@@ -473,7 +479,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             const ta = document.activeElement;
