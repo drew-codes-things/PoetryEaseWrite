@@ -65,8 +65,8 @@ function addWorkspace(restoredTitle, restoredContent) {
     ws.style.opacity = '0';
     ws.style.transform = 'translateY(20px)';
     ws.innerHTML = `
-        <input type="text" class="editable-title" value="${restoredTitle || 'choose your poem name'}" placeholder="Enter your title...">
-        <textarea placeholder="Let your creativity flow...">${restoredContent || ''}</textarea>
+        <input type="text" class="editable-title" placeholder="Enter your title...">
+        <textarea placeholder="Let your creativity flow..."></textarea>
         <div class="syllable-bar" id="syllablebar${wsIndex}" aria-live="polite">
             <span class="syllable-label">Syllables:</span>
             <span class="syllable-count" id="syllablecount${wsIndex}">-</span>
@@ -99,6 +99,8 @@ function addWorkspace(restoredTitle, restoredContent) {
 
     const ta = ws.querySelector('textarea');
     const titleInput = ws.querySelector('.editable-title');
+    titleInput.value = restoredTitle || 'choose your poem name';
+    ta.value = restoredContent || '';
     const syllableToggle = ws.querySelector('.syllable-toggle');
     const refImageEl = ws.querySelector('.reference-image');
 
